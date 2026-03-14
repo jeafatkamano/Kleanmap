@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Signaler{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+#pick-map { height: 300px; border-radius: 8px; border: 2px solid #e0e0e0; }
+#pick-map.selected { border-color: #1a7a4a; }
+.severity-btn { cursor: pointer; border: 2px solid #e0e0e0; border-radius: 8px; padding: 10px; text-align: center; transition: all 0.2s; }
+.severity-btn:hover { border-color: #1a7a4a; }
+.severity-btn.selected { border-color: #1a7a4a; background: #e8f5ee; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width:650px;">
+    <div class="mb-4">
+        <h3 class="fw-bold">📍 Signaler une zone polluée</h3>
+        <p class="text-muted small">Sans inscription — 30 secondes suffisent</p>
+    </div>
+
+    <div class="card p-4">
+        <div id="success-msg" class="alert alert-success d-none">
+            <i class="bi bi-check-circle me-2"></i>Signalement enregistré ! Merci pour votre contribution.
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">1. Localisez la zone <span class="text-danger">*</span></label>
+            <div id="pick-map" class="mb-2"></div>
+            <div class="d-flex gap-2">
+                <input type="text" id="lat-display" class="form-control form-control-sm" placeholder="Latitude" readonly>
+                <input type="text" id="lng-display" class="form-control form-control-sm" placeholder="Longitude" readonly>
+                <button class="btn btn-sm btn-outline-success" id="geolocate-btn">
+                    <i class="bi bi-crosshair"></i> Ma position
+                </button>
+            </div>
+            <small class="text-muted">Cliquez sur la carte pour placer le marqueur</small>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">2. Type de pollution <span class="text-danger">*</span></label>
+            <div class="row g-2">
+                {% for icon, label in [('🗑️','Déchets sauvages'),('💧','Eau contaminée'),('💨','Air pollué'),('🔊','Pollution sonore')] %}
+                <div class="col-6">
+                    <div class="type-btn severity-btn" data-type="{{ label }}">
+                        <div class="fs-4">{{ icon }}</div>
+                        <div class="small fw-semibold">{{ label }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">3. Niveau de sévérité <span class="text-danger">*</span></label>
+            <div class="row g-2">
+                <div class="col-4">
+                    <div class="sev-btn severity-btn" data-sev="1">
+                        <div style="color:#1a7a4a;font-size:1.2rem;">●</div>
+                        <div class="small">Faible</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="sev-btn severity-btn" data-sev="2">
+                        <div style="color:#e06b1a;font-size:1.2rem;">●</div>
+                        <div class="small">Moyen</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="sev-btn severity-btn" data-sev="3">
+                        <div style="color:#d93025;font-size:1.2rem;">●</div>
+                        <div class="small">Critique</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">4. Description</label>
+            <textarea id="description" class="form-control" rows="3"
+                placeholder="Décrivez ce que vous observez... (facultatif)"></textarea>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label fw-semibold">Ville</label>
+            <input type="text" id="city" class="form-control" value="Conakry" placeholder="Votre ville">
+        </div>
+
+        <button class="btn btn-km w-100 py-2 fw-semibold" id="submit-btn">
+            <i class="bi bi-send me-2"></i>Soumettre le signalement
+        </button>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('pick-map').setView([9.535, -13.677], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+let marker = null, selectedLat = null, selectedLng = null;
+let selectedType = null, selectedSev = null;
+
+map.on('click', e => {
+    selectedLat = e.latlng.lat.toFixed(5);
+    selectedLng = e.latlng.lng.toFixed(5);
+    document.getElementById('lat-display').value = selectedLat;
+    document.getElementById('lng-display').value = selectedLng;
+    document.getElementById('pick-map').classList.add('selected');
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(map);
+});
+
+document.getElementById('geolocate-btn').addEventListener('click', () => {
+    navigator.geolocation.getCurrentPosition(pos => {
+        selectedLat = pos.coords.latitude.toFixed(5);
+        selectedLng = pos.coords.longitude.toFixed(5);
+        document.getElementById('lat-display').value = selectedLat;
+        document.getElementById('lng-display').value = selectedLng;
+        map.setView([selectedLat, selectedLng], 15);
+        if (marker) map.removeLayer(marker);
+        marker = L.marker([selectedLat, selectedLng]).addTo(map);
+        document.getElementById('pick-map').classList.add('selected');
+    });
+});
+
+document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedType = btn.dataset.type;
+    });
+});
+
+document.querySelectorAll('.sev-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedSev = btn.dataset.sev;
+    });
+});
+
+document.getElementById('submit-btn').addEventListener('click', () => {
+    if (!selectedLat || !selectedLng) return alert('Veuillez sélectionner une position sur la carte.');
+    if (!selectedType) return alert('Veuillez choisir un type de pollution.');
+    if (!selectedSev) return alert('Veuillez choisir un niveau de sévérité.');
+
+    fetch('/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            latitude: selectedLat, longitude: selectedLng,
+            pollution_type: selectedType, severity: selectedSev,
+            description: document.getElementById('description').value,
+            city: document.getElementById('city').value || 'Conakry',
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            document.getElementById('success-msg').classList.remove('d-none');
+            window.scrollTo(0, 0);
+        }
+    });
+});
+</script>
+{% endblock %}

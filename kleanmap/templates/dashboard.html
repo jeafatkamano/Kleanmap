@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+            <h3 class="fw-bold mb-0">Dashboard autorités</h3>
+            <small class="text-muted">Vue d'ensemble — mise à jour en temps réel</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-success" id="export-btn">
+                <i class="bi bi-download me-1"></i>Exporter CSV
+            </button>
+            <a href="/map" class="btn btn-sm btn-km">
+                <i class="bi bi-map me-1"></i>Voir la carte
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        {% set pending = reports | selectattr('status', 'eq', 'pending') | list %}
+        {% set critical = reports | selectattr('severity', 'eq', 3) | list %}
+        <div class="col-6 col-md-3">
+            <div class="card stat-card p-3 text-center">
+                <div class="fs-1 fw-bold text-success">{{ reports | length }}</div>
+                <div class="text-muted small">Total signalements</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-3 text-center" style="border-left:4px solid #e06b1a;">
+                <div class="fs-1 fw-bold" style="color:#e06b1a;">{{ pending | length }}</div>
+                <div class="text-muted small">En attente</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-3 text-center" style="border-left:4px solid #d93025;">
+                <div class="fs-1 fw-bold text-danger">{{ critical | length }}</div>
+                <div class="text-muted small">Critiques</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-3 text-center" style="border-left:4px solid #1a7a4a;">
+                <div class="fs-1 fw-bold text-success">
+                    {% if reports | length > 0 %}
+                        {{ ((reports | selectattr('status', 'eq', 'resolved') | list | length) / (reports | length) * 100) | round | int }}%
+                    {% else %}0%{% endif %}
+                </div>
+                <div class="text-muted small">Taux de résolution</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+            <div class="card p-3">
+                <h6 class="fw-bold mb-3"><i class="bi bi-list-check me-2 text-success"></i>File de priorités d'intervention</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Ville</th>
+                                <th>Niveau</th>
+                                <th>Statut</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for r in reports | sort(attribute='severity', reverse=True) %}
+                            <tr>
+                                <td class="small fw-semibold">
+                                    {% if r.pollution_type == 'Déchets sauvages' %}🗑️
+                                    {% elif r.pollution_type == 'Eau contaminée' %}💧
+                                    {% elif r.pollution_type == 'Air pollué' %}💨
+                                    {% else %}🔊{% endif %}
+                                    {{ r.pollution_type }}
+                                </td>
+                                <td class="small text-muted" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    {{ r.description or '—' }}
+                                </td>
+                                <td class="small">{{ r.city }}</td>
+                                <td>
+                                    {% if r.severity == 3 %}
+                                    <span class="badge badge-critical">Critique</span>
+                                    {% elif r.severity == 2 %}
+                                    <span class="badge badge-medium">Moyen</span>
+                                    {% else %}
+                                    <span class="badge badge-low">Faible</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if r.status == 'resolved' %}bg-success{% elif r.status == 'in_progress' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                        {{ r.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm status-select" data-id="{{ r.id }}" style="width:120px;">
+                                        <option value="pending" {% if r.status == 'pending' %}selected{% endif %}>En attente</option>
+                                        <option value="in_progress" {% if r.status == 'in_progress' %}selected{% endif %}>En cours</option>
+                                        <option value="resolved" {% if r.status == 'resolved' %}selected{% endif %}>Résolu</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card p-3 mb-3">
+                <h6 class="fw-bold mb-3"><i class="bi bi-cpu me-2 text-success"></i>Rapport IA</h6>
+                <pre class="small text-muted" style="white-space:pre-wrap;font-family:inherit;font-size:0.78rem;max-height:280px;overflow-y:auto;background:#f8f9fa;padding:10px;border-radius:6px;">{{ ai_report }}</pre>
+            </div>
+            <div class="card p-3">
+                <h6 class="fw-bold mb-2"><i class="bi bi-bar-chart me-2 text-success"></i>Par type</h6>
+                <div id="type-chart" style="height:160px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.querySelectorAll('.status-select').forEach(sel => {
+    sel.addEventListener('change', function() {
+        fetch(`/api/report/${this.dataset.id}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: this.value })
+        });
+    });
+});
+
+fetch('/api/stats').then(r => r.json()).then(data => {
+    const ctx = document.getElementById('type-chart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.by_type.map(d => d.type),
+            datasets: [{ data: data.by_type.map(d => d.count),
+                backgroundColor: ['#1a7a4a','#e06b1a','#185FA5','#d93025'],
+                borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+    });
+});
+
+document.getElementById('export-btn').addEventListener('click', () => {
+    fetch('/api/reports').then(r => r.json()).then(reports => {
+        const headers = ['ID','Latitude','Longitude','Type','Description','Severite','Ville','Statut','Date'];
+        const rows = reports.map(r => [r.id,r.latitude,r.longitude,r.pollution_type,
+            (r.description||'').replace(/,/g,' '),r.severity,r.city,r.status,r.created_at]);
+        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'kleanmap_export.csv';
+        a.click();
+    });
+});
+</script>
+{% endblock %}

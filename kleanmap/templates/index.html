@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Accueil{% endblock %}
+{% block content %}
+<section style="background: linear-gradient(135deg, #0f5233 0%, #1a7a4a 100%); color: white; padding: 5rem 0 4rem;">
+    <div class="container text-center">
+        <div class="mb-3">
+            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-semibold">
+                <i class="bi bi-trophy-fill me-1"></i>Tech Hub Africa Hackathon 2026
+            </span>
+        </div>
+        <h1 class="display-4 fw-bold mb-3">Ensemble, gardons l'Afrique <span style="color:#6fcf97;">propre</span></h1>
+        <p class="lead mb-4" style="color:rgba(255,255,255,0.85); max-width:600px; margin:auto;">
+            KleanMap est une plateforme IA de signalement et prédiction de la pollution urbaine en Afrique. 
+            Signalez, visualisez, anticipez.
+        </p>
+        <div class="d-flex gap-3 justify-content-center flex-wrap">
+            <a href="/report" class="btn btn-warning fw-semibold px-4 py-2">
+                <i class="bi bi-plus-circle me-2"></i>Signaler une zone
+            </a>
+            <a href="/map" class="btn btn-outline-light px-4 py-2">
+                <i class="bi bi-map me-2"></i>Voir la carte
+            </a>
+        </div>
+    </div>
+</section>
+
+<div class="container my-5">
+    <div class="row g-3 mb-5">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card p-3 text-center">
+                <div class="fs-1 fw-bold text-success">{{ stats.total }}</div>
+                <div class="text-muted small">Signalements total</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-3 text-center" style="border-left:4px solid #e06b1a;">
+                <div class="fs-1 fw-bold" style="color:#e06b1a;">{{ stats.pending }}</div>
+                <div class="text-muted small">En attente</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-3 text-center" style="border-left:4px solid #d93025;">
+                <div class="fs-1 fw-bold text-danger">{{ stats.critical }}</div>
+                <div class="text-muted small">Critiques</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card p-3 text-center" style="border-left:4px solid #185FA5;">
+                <div class="fs-1 fw-bold text-primary">{{ stats.resolved }}</div>
+                <div class="text-muted small">Résolus</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-12"><h4 class="fw-bold">Comment ça marche</h4></div>
+        <div class="col-md-4">
+            <div class="card p-4 h-100 text-center">
+                <div class="fs-1 mb-3">📍</div>
+                <h5 class="fw-bold">1. Signalez</h5>
+                <p class="text-muted small">Repérez une zone polluée ? Signalez-la en 30 secondes — sans inscription, depuis votre téléphone.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 h-100 text-center">
+                <div class="fs-1 mb-3">🗺️</div>
+                <h5 class="fw-bold">2. Visualisez</h5>
+                <p class="text-muted small">Tous les signalements s'affichent en temps réel sur la carte interactive, classés par type et urgence.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card p-4 h-100 text-center">
+                <div class="fs-1 mb-3">🤖</div>
+                <h5 class="fw-bold">3. L'IA prédit</h5>
+                <p class="text-muted small">Notre agent IA analyse les données et prédit les zones à risque avant qu'elles deviennent critiques.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12"><h4 class="fw-bold">Types de pollution surveillés</h4></div>
+        {% set types = [
+            ('🗑️', 'Déchets sauvages', 'Dépôts illégaux, décharges non autorisées'),
+            ('💧', 'Eau contaminée', 'Eaux stagnantes, déversements chimiques'),
+            ('💨', 'Air pollué', 'Fumées, brûlages, émissions industrielles'),
+            ('🔊', 'Pollution sonore', 'Bruit excessif, générateurs, chantiers'),
+        ] %}
+        {% for icon, name, desc in types %}
+        <div class="col-6 col-md-3">
+            <div class="card p-3 h-100">
+                <div class="fs-2 mb-2">{{ icon }}</div>
+                <div class="fw-semibold small">{{ name }}</div>
+                <div class="text-muted" style="font-size:0.78rem;">{{ desc }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

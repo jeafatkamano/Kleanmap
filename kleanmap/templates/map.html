@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Carte interactive{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+#map { height: 70vh; border-radius: 12px; }
+.legend { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.82rem; }
+.dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.filter-bar { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container-fluid py-4 px-4">
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="filter-bar d-flex align-items-center gap-3 flex-wrap">
+                <span class="fw-semibold small">Filtrer :</span>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-km filter-btn active" data-filter="all">Tous</button>
+                    <button class="btn btn-sm btn-outline-secondary filter-btn" data-filter="Déchets sauvages">🗑️ Déchets</button>
+                    <button class="btn btn-sm btn-outline-secondary filter-btn" data-filter="Eau contaminée">💧 Eau</button>
+                    <button class="btn btn-sm btn-outline-secondary filter-btn" data-filter="Air pollué">💨 Air</button>
+                    <button class="btn btn-sm btn-outline-secondary filter-btn" data-filter="Pollution sonore">🔊 Bruit</button>
+                </div>
+                <div class="ms-auto d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-success" id="toggle-predictions">
+                        <i class="bi bi-cpu me-1"></i>Zones IA
+                    </button>
+                    <a href="/report" class="btn btn-sm btn-km">
+                        <i class="bi bi-plus me-1"></i>Signaler
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-9">
+            <div id="map"></div>
+        </div>
+        <div class="col-lg-3">
+            <div class="card p-3 mb-3">
+                <h6 class="fw-bold mb-3"><i class="bi bi-list-ul me-2 text-success"></i>Signalements récents</h6>
+                <div id="report-list" style="max-height:55vh; overflow-y:auto;"></div>
+            </div>
+            <div class="legend card p-3">
+                <div class="fw-bold small mb-2">Légende</div>
+                <div class="legend-item"><div class="dot" style="background:#d93025;"></div> Critique (niveau 3)</div>
+                <div class="legend-item"><div class="dot" style="background:#e06b1a;"></div> Moyen (niveau 2)</div>
+                <div class="legend-item"><div class="dot" style="background:#1a7a4a;"></div> Faible (niveau 1)</div>
+                <div class="legend-item"><div class="dot" style="background:#185FA5; opacity:0.6;"></div> Zone IA à risque</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([9.535, -13.677], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+const colors = { 3: '#d93025', 2: '#e06b1a', 1: '#1a7a4a' };
+const typeIcons = {
+    'Déchets sauvages': '🗑️', 'Eau contaminée': '💧',
+    'Air pollué': '💨', 'Pollution sonore': '🔊'
+};
+
+let allMarkers = [];
+let predictionLayers = [];
+let predictionsVisible = false;
+let currentFilter = 'all';
+
+function makeIcon(severity) {
+    return L.divIcon({
+        html: `<div style="width:16px;height:16px;border-radius:50%;background:${colors[severity]};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`,
+        className: '', iconSize: [16, 16], iconAnchor: [8, 8]
+    });
+}
+
+function loadReports() {
+    fetch('/api/reports').then(r => r.json()).then(reports => {
+        allMarkers.forEach(m => map.removeLayer(m.marker));
+        allMarkers = [];
+        const list = document.getElementById('report-list');
+        list.innerHTML = '';
+        reports.sort((a, b) => b.severity - a.severity).forEach(r => {
+            const marker = L.marker([r.latitude, r.longitude], { icon: makeIcon(r.severity) })
+                .bindPopup(`
+                    <div style="min-width:200px;">
+                        <div style="font-weight:600;margin-bottom:4px;">${typeIcons[r.pollution_type] || '📍'} ${r.pollution_type}</div>
+                        <div style="font-size:0.85rem;color:#666;margin-bottom:6px;">${r.description || 'Aucune description'}</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <span style="background:${colors[r.severity]};color:white;padding:2px 8px;border-radius:99px;font-size:0.75rem;">
+                                Niveau ${r.severity}
+                            </span>
+                            <span style="background:#f0f0f0;padding:2px 8px;border-radius:99px;font-size:0.75rem;">${r.status}</span>
+                        </div>
+                        <div style="font-size:0.75rem;color:#999;margin-top:6px;">${r.created_at}</div>
+                    </div>
+                `);
+            allMarkers.push({ marker, type: r.pollution_type, severity: r.severity });
+            if (currentFilter === 'all' || currentFilter === r.pollution_type) {
+                marker.addTo(map);
+            }
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:8px;border-bottom:0.5px solid #f0f0f0;cursor:pointer;';
+            item.innerHTML = `
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                    <span>${typeIcons[r.pollution_type] || '📍'}</span>
+                    <span style="font-size:0.82rem;font-weight:600;">${r.pollution_type}</span>
+                    <span style="margin-left:auto;background:${colors[r.severity]};color:white;padding:1px 6px;border-radius:99px;font-size:0.7rem;">N${r.severity}</span>
+                </div>
+                <div style="font-size:0.75rem;color:#888;">${r.city} — ${r.created_at}</div>
+            `;
+            item.onclick = () => { map.setView([r.latitude, r.longitude], 16); marker.openPopup(); };
+            list.appendChild(item);
+        });
+    });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'btn-km'));
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.add('btn-outline-secondary'));
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('active', 'btn-km');
+        currentFilter = btn.dataset.filter;
+        allMarkers.forEach(({ marker, type }) => {
+            if (currentFilter === 'all' || currentFilter === type) marker.addTo(map);
+            else map.removeLayer(marker);
+        });
+    });
+});
+
+document.getElementById('toggle-predictions').addEventListener('click', function() {
+    if (predictionsVisible) {
+        predictionLayers.forEach(l => map.removeLayer(l));
+        predictionLayers = [];
+        predictionsVisible = false;
+        this.classList.remove('btn-success');
+        this.classList.add('btn-outline-success');
+    } else {
+        fetch('/api/predictions').then(r => r.json()).then(zones => {
+            zones.forEach(z => {
+                const circle = L.circle([z.lat, z.lng], {
+                    radius: 1500,
+                    color: '#185FA5',
+                    fillColor: '#185FA5',
+                    fillOpacity: z.score * 0.4,
+                    weight: 1,
+                    opacity: 0.6
+                }).bindPopup(`<b>Zone à risque IA</b><br>Score : ${Math.round(z.score * 100)}%`);
+                circle.addTo(map);
+                predictionLayers.push(circle);
+            });
+            predictionsVisible = true;
+            this.classList.remove('btn-outline-success');
+            this.classList.add('btn-success');
+        });
+    }
+});
+
+loadReports();
+setInterval(loadReports, 30000);
+</script>
+{% endblock %}

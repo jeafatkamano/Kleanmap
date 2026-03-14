@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KleanMap{% endblock %} — Tech Hub Africa 2026</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --km-green: #1a7a4a;
+            --km-green-light: #e8f5ee;
+            --km-green-dark: #0f5233;
+            --km-orange: #e06b1a;
+            --km-orange-light: #fef3ea;
+            --km-red: #d93025;
+            --km-gray: #f8f9fa;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f6f4; }
+        .navbar { background: var(--km-green-dark) !important; }
+        .navbar-brand { font-weight: 700; font-size: 1.3rem; color: white !important; }
+        .navbar-brand span { color: #6fcf97; }
+        .nav-link { color: rgba(255,255,255,0.85) !important; font-size: 0.9rem; }
+        .nav-link:hover, .nav-link.active { color: white !important; }
+        .btn-km { background: var(--km-green); color: white; border: none; }
+        .btn-km:hover { background: var(--km-green-dark); color: white; }
+        .badge-critical { background: var(--km-red); color: white; }
+        .badge-medium { background: var(--km-orange); color: white; }
+        .badge-low { background: var(--km-green); color: white; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .stat-card { border-left: 4px solid var(--km-green); }
+        footer { background: var(--km-green-dark); color: rgba(255,255,255,0.7); font-size: 0.85rem; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/"><i class="bi bi-geo-alt-fill me-2"></i>Klean<span>Map</span></a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="/">Accueil</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'map_view' %}active{% endif %}" href="/map">Carte</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'report' %}active{% endif %}" href="/report">Signaler</a></li>
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="/dashboard">Dashboard</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+{% block content %}{% endblock %}
+<footer class="py-3 mt-5">
+    <div class="container text-center">
+        <span>KleanMap &copy; 2026 — Tech Hub Africa Hackathon | Piste : Reducing Public Pollution</span>
+    </div>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
